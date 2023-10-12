@@ -1,6 +1,6 @@
 # CuJankDetector
 Hook surfaceflinger to detect jank.  
-- Support Android 12-13 arm64 decices.  
+- Support Android 12-13 arm64 devices.  
 - Provide magisk module and easy to use.
 
 ### Build
