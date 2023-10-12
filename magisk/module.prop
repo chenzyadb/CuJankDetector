@@ -1,0 +1,6 @@
+id=cu_jank_detector
+name=CuJankDetector
+version=v1.0
+versionCode=100
+author=chenzyadb@github
+description=Hook SurfaceFlinger to detect jank.
