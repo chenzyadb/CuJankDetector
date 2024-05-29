@@ -1,6 +1,6 @@
 #include "misc.h"
 
-struct lib_params process_libs{};
+lib_params process_libs{};
 
 #ifndef __aarch64__
 

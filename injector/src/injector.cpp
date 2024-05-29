@@ -5,14 +5,14 @@
 int inject_remote_process(pid_t pid, const char* lib_path, const char* func_symbol)
 {
     if (ptrace_attach(pid) < 0) {
-        LOG("[-] ptrace attach failed.");
+        LOG("[-] ptrace_attach failed.");
         return -1;
     }
 
     struct user_pt_regs cur_regs{};
     struct user_pt_regs orig_regs{};
     if (ptrace_getregs(pid, &orig_regs) < 0) {
-        LOG("[-] ptrace getregs failed.");
+        LOG("[-] ptrace_getregs failed.");
         ptrace_detach(pid);
         return -1;
     }
@@ -24,7 +24,7 @@ int inject_remote_process(pid_t pid, const char* lib_path, const char* func_symb
     // void* mmap(void* start, size_t length, int prot, int flags, int fd, off_t offsize);
     uint64_t mmap_params[6] = { 0 };
     mmap_params[0] = 0;
-    mmap_params[1] = PATH_MAX;
+    mmap_params[1] = 8192;
     mmap_params[2] = PROT_READ | PROT_WRITE | PROT_EXEC;
     mmap_params[3] = MAP_ANONYMOUS | MAP_PRIVATE;
     mmap_params[4] = 0;
@@ -62,7 +62,7 @@ int inject_remote_process(pid_t pid, const char* lib_path, const char* func_symb
     auto remote_module_addr = (void*)ptrace_getret(&cur_regs);
     if (remote_module_addr == nullptr) {
         LOG("[-] ptrace_call dlopen error.");
-        if (ptrace_call(pid, dlerror_addr, nullptr, 0, &cur_regs) == -1) {
+        if (ptrace_call(pid, dlerror_addr, nullptr, 0, &cur_regs) < 0) {
             LOG("[-] ptrace_call dlerror func failed.");
             ptrace_detach(pid);
             return -1;
@@ -104,7 +104,7 @@ int inject_remote_process(pid_t pid, const char* lib_path, const char* func_symb
             return -1;
         }
     } else {
-        LOG("[+] No func_symbol.");
+        LOG("[+] No func symbol.");
     }
 
     if (ptrace_setregs(pid, &orig_regs) < 0) {
@@ -115,6 +115,8 @@ int inject_remote_process(pid_t pid, const char* lib_path, const char* func_symb
     ptrace_getregs(pid, &cur_regs);
     if (memcmp(&orig_regs, &cur_regs, sizeof(struct user_pt_regs)) != 0) {
         LOG("[-] Recover regs failed.");
+        ptrace_detach(pid);
+        return -1;
     }
     LOG("[+] Recover regs success.");
     
@@ -128,7 +130,7 @@ struct inject_params {
     const char* func_symbol;
 };
 
-struct inject_params process_inject = {0, "", ""};
+inject_params process_inject = {0, "", ""};
 
 void handle_params(int argc, char* argv[])
 {
@@ -139,21 +141,21 @@ void handle_params(int argc, char* argv[])
     int count = 0;
     while (count < argc) {
         if (strcmp(argv[count], "-p") == 0) {
-            if ((count + 1) >= argc){
+            if ((count + 1) >= argc) {
                 LOG("[-] Missing parameter -p.");
                 exit(-1);
             }
             count++;
             pid = atoi(argv[count]);
         } else if (strcmp(argv[count], "-l") == 0) {
-            if ((count + 1) >= argc){
+            if ((count + 1) >= argc) {
                 LOG("[-] Missing parameter -l.");
                 exit(-1);
             }
             count++;
             lib_path = argv[count];
         } else if (strcmp(argv[count], "-s") == 0) {
-            if ((count + 1) >= argc){
+            if ((count + 1) >= argc) {
                 LOG("[-] Missing parameter -s.");
                 exit(-1);
             }
@@ -192,13 +194,10 @@ int init_inject(int argc, char* argv[])
     return inject_remote_process(process_inject.pid, process_inject.lib_path, process_inject.func_symbol);
 }
 
-// -p 目标进程pid
-// -l 注入的动态链接库文件路径
-// -s 指定动态链接库中的函数名
 int main(int argc, char* argv[]) 
 {
     LOG("[+] Start Inject.");
-    if (init_inject(argc, argv) == 0){
+    if (init_inject(argc, argv) == 0) {
         LOG("[+] Injection Finished.");
     } else {
         LOG("[-] Injection Failed.");

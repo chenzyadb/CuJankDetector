@@ -36,7 +36,7 @@ struct lib_params {
     const char* libdl_path;
 };
 
-extern struct lib_params process_libs;
+extern lib_params process_libs;
 
 
 inline void* get_module_base_addr(pid_t pid, const char* module_name) noexcept
@@ -51,15 +51,18 @@ inline void* get_module_base_addr(pid_t pid, const char* module_name) noexcept
         char buffer[1024] = { 0 };
         while (fgets(buffer, sizeof(buffer), fp) != nullptr) {
             if (strstr(buffer, module_name) != nullptr) {
-                char addr_str[1024] = { 0 };
-                size_t addr_str_len = strchr(buffer, '-') - &buffer[0];
-                memcpy(addr_str, buffer, addr_str_len);
-                addr_str[addr_str_len] = '\0';
-                module_base_addr = (void*)strtoul(addr_str, nullptr, 16);
-                if (module_base_addr == (void*)ULLONG_MAX) {
-                    module_base_addr = nullptr;
+                auto divide_ptr = strchr(buffer, '-');
+                if (divide_ptr != nullptr) {
+                    char addr_str[1024] = { 0 };
+                    size_t addr_str_len = divide_ptr - &buffer[0];
+                    memcpy(addr_str, buffer, addr_str_len);
+                    addr_str[addr_str_len] = '\0';
+                    auto module_addr = (void*)strtoul(addr_str, nullptr, 16);
+                    if (module_addr != (void*)ULLONG_MAX) {
+                        module_base_addr = module_addr;
+                        break;
+                    }
                 }
-                break;
             }
         }
         fclose(fp);
